@@ -9,6 +9,7 @@ from aiogram.filters import CommandStart
 from aiogram.types import FSInputFile
 
 from app.services.fetch import fetch
+from app.services.gigachat_service import generate_recommendation
 
 # ====== Настройки ======
 BOT_TOKEN = os.getenv("TG_BOT_TOKEN")
@@ -24,8 +25,8 @@ dp = Dispatcher()
 router = Router()
 dp.include_router(router)
 
-# ====== Хендлеры ======
 
+# ====== Хендлеры ======
 @router.message(CommandStart())
 async def cmd_start(message: types.Message):
     await message.answer(
@@ -39,7 +40,6 @@ async def handle_text(message: types.Message):
         await message.answer("⚠️ Сообщение пустое — отправь текст публикации.")
         return
 
-    # Если ссылка на пост, достаем текст
     if text.startswith("https://t.me/"):
         text = await fetch(text)
         if not text:
@@ -47,7 +47,6 @@ async def handle_text(message: types.Message):
             return
 
     try:
-        # Асинхронный запрос к API
         async with httpx.AsyncClient(timeout=5.0) as client:
             resp = await client.post(REPORT_ENDPOINT, json={"text": text})
             if resp.status_code != 200:
@@ -60,14 +59,40 @@ async def handle_text(message: types.Message):
         risk_level = data.get("risk_level", "low")
         xlsx_base64 = data.get("xlsx_base64")
 
-        # Сообщение о нарушениях
-        await message.answer(
-            f"✅ Найдено {len(incidents)} возможных нарушений.\n"
-            f"Суммарный риск: {total_risk}\n"
-            f"Уровень риска: {risk_level}"
-        )
+        # 1. Сообщение о нарушениях с категориями
+        category_map = {
+            "general": "🟢",
+            "privacy": "🔴",
+            "finance": "🟡",
+            "marketing": "🔵",
+            "hidden": "🟠"
+        }
 
-        # Отправка XLSX
+        if incidents:
+            category_messages = []
+            for cat, emoji in category_map.items():
+                cat_incidents = [i['message'] for i in incidents if i.get('category') == cat]
+                if cat_incidents:
+                    category_messages.append(f"{emoji} *{cat.capitalize()}*:\n- " + "\n- ".join(cat_incidents))
+
+            await message.answer(
+                f"✅ Найдено {len(incidents)} возможных нарушений.\n"
+                f"Суммарный риск: {total_risk}\n"
+                f"Уровень риска: {risk_level}\n\n" + "\n\n".join(category_messages),
+                parse_mode="Markdown"
+            )
+        else:
+            await message.answer(f"✅ Нарушений не найдено. Суммарный риск: {total_risk}, уровень: {risk_level}")
+
+        # 2. Генерация рекомендаций через GigaChat
+        if incidents:
+            try:
+                recs_ai = await generate_recommendation(text, incidents)
+                await message.answer(f"💡 Рекомендации по исправлению нарушений:\n{recs_ai}")
+            except Exception as e:
+                await message.answer(f"⚠️ Не удалось получить рекомендации от GigaChat: {e}")
+
+        # 3. Отправка XLSX
         if xlsx_base64:
             xlsx_bytes = base64.b64decode(xlsx_base64)
             with tempfile.NamedTemporaryFile(suffix=".xlsx", delete=False) as tmp_file:
@@ -75,8 +100,6 @@ async def handle_text(message: types.Message):
                 tmp_file_path = tmp_file.name
 
             await message.answer_document(FSInputFile(tmp_file_path, filename="report.xlsx"))
-
-            # Удаляем временный файл
             os.remove(tmp_file_path)
 
     except Exception as e:
