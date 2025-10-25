@@ -1,0 +1,111 @@
+version: 3
+rules:
+  - id: R1
+    name: "Отсутствует маркировка рекламы"
+    description: "Текст помечен как реклама при отсутствии слова 'реклама' или метки"
+    severity: high
+    condition:
+      not_contains: ["реклама", "ad", "promo", "sponsored"]
+    signal: "missing_ad_label"
+
+  - id: R2
+    name: "Не указан ИНН"
+    description: "В рекламных публикациях должен быть указан ИНН"
+    severity: high
+    condition:
+      requires_entity: ["INN"]
+    signal: "missing_inn"
+
+  - id: R3
+    name: "Сбор персональных данных без согласия"
+    description: "Обнаружены поля ввода ПД без упоминания согласия"
+    severity: high
+    condition:
+      contains: ["номер телефона", "имя", "почта", "адрес"]
+      not_contains: ["согласие", "согласен", "даю согласие"]
+    signal: "pd_without_consent"
+
+  - id: R4
+    name: "Обещание гарантированного дохода"
+    description: "Реклама содержит обещания прибыли без риска, что запрещено законодательством о рекламе"
+    severity: high
+    condition:
+      contains: ["гарантированный доход", "легкие деньги", "100% прибыль"]
+    signal: "guaranteed_income_claim"
+
+  - id: R5
+    name: "Незаконные медицинские услуги"
+    description: "Реклама медицинских услуг без лицензии или сертификата"
+    severity: high
+    condition:
+      contains: ["лечебная процедура", "медицинская услуга", "диагностика"]
+      not_contains: ["сертификат", "лицензия", "разрешение"]
+    signal: "unlicensed_medical_service"
+
+  - id: R6
+    name: "Манипуляция с отзывами"
+    description: "Реклама содержит поддельные отзывы или фейковые рекомендации"
+    severity: medium
+    condition:
+      contains: ["лучший сервис", "все довольны", "100% положительные отзывы"]
+    signal: "fake_reviews"
+
+  - id: R7
+    name: "Неправомерная финансовая реклама"
+    description: "Реклама финансовых инструментов без предупреждения о рисках"
+    severity: high
+    condition:
+      contains: ["инвестиции", "криптовалюта", "прибыль за день"]
+      not_contains: ["риск", "возможны потери", "не гарантировано"]
+    signal: "financial_ad_without_risk_warning"
+
+  - id: R8
+    name: "Использование запрещенных товаров"
+    description: "Реклама содержит запрещенные товары или услуги"
+    severity: high
+    condition:
+      contains: ["табак", "наркотики", "алкоголь"]
+      not_contains: ["18+", "для взрослых"]
+    signal: "illegal_product_ad"
+
+  - id: R9
+    name: "Манипулятивный кликбейт"
+    description: "Текст содержит явно провокационные заголовки для привлечения кликов"
+    severity: medium
+    condition:
+      contains: ["шок!", "не поверите", "срочно", "эксклюзив"]
+    signal: "clickbait"
+
+  - id: R10
+    name: "Скрытая реклама через ботов или каналы"
+    description: "Сообщения содержат ссылки на другие каналы или ботов с рекламой, без явной маркировки"
+    severity: high
+    condition:
+      contains_pattern: ["t\\.me/[a-zA-Z0-9_]+", "telegram\\.me/[a-zA-Z0-9_]+"]
+      not_contains: ["реклама", "ad", "promo"]
+    signal: "hidden_ad_bot"
+
+  - id: R11
+    name: "Сомнительные внешние ссылки"
+    description: "Реклама содержит ссылки на внешние сайты с подозрительными доменами или сокращениями"
+    severity: medium
+    condition:
+      contains_pattern: ["bit\\.ly", "tinyurl\\.com", "goo\\.gl", "t\\.me/joinchat"]
+    signal: "suspicious_links"
+
+  - id: R12
+    name: "Скрытый сбор ПД через формы и боты"
+    description: "Сообщение содержит формы или ботов для ввода персональных данных без согласия"
+    severity: high
+    condition:
+      contains: ["введите", "отправьте", "заполните форму", "бот для регистрации"]
+      not_contains: ["согласие", "получил согласие", "даю согласие"]
+    signal: "hidden_pd_collection"
+
+  - id: R13
+    name: "Использование эмоционального давления"
+    description: "Реклама содержит угрозы, ограниченные предложения или давление для покупки"
+    severity: medium
+    condition:
+      contains: ["только сегодня", "последний шанс", "иначе потеряете", "не упустите"]
+    signal: "emotional_pressure"
