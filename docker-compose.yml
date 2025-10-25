@@ -1,0 +1,20 @@
+version: '3.8'
+services:
+  api:
+    build: .
+    ports:
+      - '8000:8000'
+    environment:
+      - DATABASE_URL=postgresql://postgres:postgres@db/postgres
+  bot:
+    build: .
+    command: python bot/telegram_bot.py
+    environment:
+      - TG_BOT_TOKEN=${TG_BOT_TOKEN}
+      - API_URL=http://api:8000/api/v1/analyze/
+  db:
+    image: postgres:15
+    environment:
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - '5432:5432'

@@ -1,0 +1,26 @@
+version: 1
+rules:
+  - id: R1
+    name: "Отсутствует маркировка рекламы"
+    description: "Текст помечен как реклама при отсутствии слова 'реклама' или метки"
+    severity: high
+    condition:
+      not_contains: ["реклама", "ad", "promo", "sponsored"]
+    signal: "missing_ad_label"
+
+  - id: R2
+    name: "Не указан ИНН"
+    description: "В рекламных публикациях должен быть указан ИНН"
+    severity: high
+    condition:
+      requires_entity: ["INN"]
+    signal: "missing_inn"
+
+  - id: R3
+    name: "Сбор персональных данных без согласия"
+    description: "Обнаружены поля ввода ПД без упоминания согласия"
+    severity: high
+    condition:
+      contains: ["номер телефона", "имя", "почта", "адрес"]
+      not_contains: ["согласие", "согласен", "даю согласие"]
+    signal: "pd_without_consent"
