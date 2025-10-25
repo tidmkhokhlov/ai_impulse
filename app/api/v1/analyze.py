@@ -3,6 +3,8 @@ from pydantic import BaseModel
 from app.services.nlp_service import NLPService
 from app.services.rules_engine import RulesEngine
 from app.services.report_service import ReportService
+from app.db.database import SessionLocal
+from app.db.models import Incident
 import base64
 
 router = APIRouter()

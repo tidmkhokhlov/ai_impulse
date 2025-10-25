@@ -7,6 +7,7 @@ import httpx
 from aiogram import Bot, Dispatcher, Router, types
 from aiogram.filters import CommandStart
 from aiogram.types import FSInputFile
+from bot.utils.escape_markdown import escape_markdown
 
 from app.services.fetch import fetch
 from app.services.gigachat_service import generate_recommendation
@@ -88,7 +89,8 @@ async def handle_text(message: types.Message):
         if incidents:
             try:
                 recs_ai = await generate_recommendation(text, incidents)
-                await message.answer(f"💡 Рекомендации по исправлению нарушений:\n{recs_ai}")
+                safe_recs = escape_markdown(recs_ai)
+                await message.answer(f"💡 Рекомендации по исправлению нарушений:\n{safe_recs}", parse_mode="MarkdownV2")
             except Exception as e:
                 await message.answer(f"⚠️ Не удалось получить рекомендации от GigaChat: {e}")
 

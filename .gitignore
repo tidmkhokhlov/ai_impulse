@@ -5,3 +5,4 @@ __pycache__/
 /mnt/
 /data/
 *.session
+*.db
