@@ -1,7 +1,6 @@
 from fastapi import FastAPI
 from app.api.v1 import analyze, incidents
-from app.core.config import settings
-from app.services.fetch import fetch
+from app.db.init_db import init_db
 
 app = FastAPI(title="AI Impulse - Audit API")
 
@@ -11,3 +10,11 @@ app.include_router(incidents.router, prefix="/api/v1/incidents", tags=["incident
 @app.get("/")
 async def root():
     return {"status": "ok", "service": "ai-impulse"}
+
+# ====== Инициализация БД при старте ======
+@app.on_event("startup")
+async def startup_event():
+    try:
+        await init_db()
+    except Exception as e:
+        print(f"⚠️ Ошибка инициализации базы: {e}")
