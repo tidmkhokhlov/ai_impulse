@@ -7,12 +7,11 @@ import traceback
 
 from app.services.nlp_service import NLPService
 from app.services.report_service import ReportService
-from app.services.gigachat_service import generate_recommendation
+from app.services.gigachat_service import generate_recommendation, find_ads
 from app.db.database import SessionLocal
 from app.db.models import Incident
 
 router = APIRouter()
-
 
 nlp = NLPService("app/rules/rules_v5.yaml")
 report_service = ReportService()
@@ -30,7 +29,28 @@ async def analyze_report(req: AnalyzeRequest):
         if not text:
             raise HTTPException(status_code=400, detail="Текст публикации пустой.")
 
-        # 1. NLP-анализ (теперь включает правила)
+        # 1. Проверяем через GigaChat, является ли текст рекламой
+        try:
+            ad_check_result = await find_ads(text)
+
+            if ad_check_result == "Не реклама":
+                return {
+                    "incidents": [],
+                    "total_risk": 0,
+                    "risk_level": "low",
+                    "xlsx_base64": None,
+                    "recommendations": "✅ Текст не является рекламой. Дальнейшая проверка не требуется.",
+                    "entities": {},
+                    "ad_info": {"is_ad": False, "gigachat_check": ad_check_result},
+                    "pd_fields": {},
+                    "gigachat_ad_check": ad_check_result
+                }
+        except Exception as e_ad_check:
+            print("Ошибка при проверке рекламы через GigaChat:", e_ad_check)
+            traceback.print_exc()
+            # Продолжаем обработку даже если проверка не удалась
+
+        # 2. NLP-анализ (теперь включает правила)
         nlp_result = nlp.analyze(text)
         violations = nlp_result.get('violations', [])
 
@@ -45,7 +65,7 @@ async def analyze_report(req: AnalyzeRequest):
                 'signal': violation.get('signal', '')
             })
 
-        # 2. Сохраняем инциденты в БД
+        # 3. Сохраняем инциденты в БД
         try:
             async with SessionLocal() as session:
                 for inc in incidents:
@@ -61,7 +81,7 @@ async def analyze_report(req: AnalyzeRequest):
             print("Ошибка при сохранении в БД:", e_db)
             traceback.print_exc()
 
-        # 3. Генерация XLSX
+        # 4. Генерация XLSX
         try:
             xlsx_bytes = report_service.violations_to_xlsx(nlp_result)
             encoded_xlsx = base64.b64encode(xlsx_bytes).decode('utf-8')
@@ -70,9 +90,8 @@ async def analyze_report(req: AnalyzeRequest):
             traceback.print_exc()
             encoded_xlsx = None
 
-        # 4. Получение рекомендаций GigaChat
+        # 5. Получение рекомендаций GigaChat
         try:
-            print(text, incidents)
             recs_ai = await generate_recommendation(text, incidents)
         except Exception as e_ai:
             print("Ошибка GigaChat:", e_ai)
@@ -88,7 +107,8 @@ async def analyze_report(req: AnalyzeRequest):
             # Дополнительная информация из NLP анализа
             "entities": nlp_result.get('entities', {}),
             "ad_info": nlp_result.get('ad_info', {}),
-            "pd_fields": nlp_result.get('pd_fields', {})
+            "pd_fields": nlp_result.get('pd_fields', {}),
+            "gigachat_ad_check": ad_check_result if 'ad_check_result' in locals() else "Проверка не выполнена"
         }
 
     except HTTPException:

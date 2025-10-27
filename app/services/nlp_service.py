@@ -19,20 +19,37 @@ class NLPService:
         """Находит и загружает файл правил."""
         possible_paths = []
 
-        # Если путь указан явно
+        # Если путь указан явно - добавляем его первым и проверяем в первую очередь
         if rules_config:
-            possible_paths.append(Path(rules_config))
+            explicit_path = Path(rules_config)
+            possible_paths.append(explicit_path)
 
-        # Автоматический поиск от текущего файла
-        current_dir = Path(__file__).parent
-        possible_paths.extend([
-            current_dir / "rules_v4.yaml",
-            current_dir / "rules" / "rules_v4.yaml",
-            current_dir.parent / "rules" / "rules_v4.yaml",
-            current_dir.parent.parent / "rules" / "rules_v4.yaml",
-            Path("rules_v4.yaml"),
-            Path("rules/rules_v4.yaml"),
-        ])
+            # Если это относительный путь, добавляем абсолютные варианты
+            if not explicit_path.is_absolute():
+                current_dir = Path(__file__).parent
+                possible_paths.extend([
+                    current_dir / rules_config,
+                    current_dir.parent / rules_config,
+                    current_dir.parent.parent / rules_config,
+                ])
+
+        # Автоматический поиск от текущего файла (только если не передан явный путь)
+        if not rules_config:
+            current_dir = Path(__file__).parent
+            possible_paths.extend([
+                current_dir / "rules_v4.yaml",
+                current_dir / "rules" / "rules_v4.yaml",
+                current_dir.parent / "rules" / "rules_v4.yaml",
+                current_dir.parent.parent / "rules" / "rules_v4.yaml",
+                Path("rules_v4.yaml"),
+                Path("rules/rules_v4.yaml"),
+            ])
+
+        # Выводим отладочную информацию
+        print(f"[DEBUG] Ищем правила по путям:")
+        for i, path in enumerate(possible_paths):
+            exists = "✅ СУЩЕСТВУЕТ" if path.exists() else "❌ НЕТ"
+            print(f"  {i + 1}. {path} {exists}")
 
         # Попробовать найти файл
         for path in possible_paths:
@@ -53,7 +70,6 @@ class NLPService:
             return rules
         except Exception as e:
             print(f"[NLPService] Ошибка загрузки правил: {e}")
-            return self._get_basic_rules()
 
     # Остальные методы остаются без изменений...
     def _fit_vectorizer(self):
