@@ -5,9 +5,9 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-# Получаем ключи из переменных окружения (или .env, если у тебя он подключен)
-API_ID = int(os.getenv("TG_API_ID", "0"))
-API_HASH = os.getenv("TG_API_HASH", "")
+# Получаем ключи из переменных окружения
+API_ID = os.getenv("TG_API_ID")
+API_HASH = os.getenv("TG_API_HASH")
 
 
 async def fetch(channel_url: str):

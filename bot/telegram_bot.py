@@ -7,9 +7,9 @@ from dotenv import load_dotenv
 
 from aiogram import Bot, Dispatcher, Router, types, F
 from aiogram.filters import CommandStart, Command
-from aiogram.types import FSInputFile, ReplyKeyboardMarkup, KeyboardButton, InlineKeyboardMarkup, InlineKeyboardButton
+from aiogram.types import FSInputFile, ReplyKeyboardMarkup, KeyboardButton
 
-from app.services.fetch import fetch
+from bot.utils.fetch import fetch
 load_dotenv()
 
 
