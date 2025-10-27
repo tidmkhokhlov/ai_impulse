@@ -4,6 +4,7 @@ import base64
 import tempfile
 import httpx
 import re
+from dotenv import load_dotenv
 
 from aiogram import Bot, Dispatcher, Router, types
 from aiogram.filters import CommandStart
@@ -11,9 +12,11 @@ from aiogram.types import FSInputFile
 
 from app.services.fetch import fetch
 
+load_dotenv()
+
 # ====== Настройки ======
 BOT_TOKEN = os.getenv("TG_BOT_TOKEN")
-API_URL = os.getenv("http://127.0.0.1:8000/api/v1/analyze/")
+API_URL = "http://127.0.0.1:8000/api/v1/analyze/"
 REPORT_ENDPOINT = f"{API_URL}report"
 
 if not BOT_TOKEN:
@@ -26,11 +29,7 @@ router = Router()
 dp.include_router(router)
 
 
-# ====== Вспомогательная функция MarkdownV2 ======
-def escape_markdown(text: str) -> str:
-    """Экранирует спецсимволы MarkdownV2 для Telegram."""
-    escape_chars = r'_*\[\]()~`>#+-=|{}.!'
-    return re.sub(f'([{re.escape(escape_chars)}])', r'\\\1', text)
+
 
 
 # ====== Хэндлеры ======
@@ -66,7 +65,7 @@ async def handle_text(message: types.Message):
         total_risk = data.get("total_risk", 0)
         risk_level = data.get("risk_level", "low")
         xlsx_base64 = data.get("xlsx_base64")
-        recommendations = escape_markdown(data.get("recommendations", ""))
+        recommendations = data.get("recommendations", "")
 
         # Сообщение о нарушениях
         await message.answer(
@@ -77,8 +76,7 @@ async def handle_text(message: types.Message):
 
         # Отправка рекомендаций GigaChat
         if recommendations:
-            await message.answer(f"💡 Рекомендации по исправлению нарушений:\n{recommendations}",
-                                 parse_mode="MarkdownV2")
+            await message.answer(f"💡 Рекомендации по исправлению нарушений:\n{recommendations}")
 
         # Отправка XLSX
         if xlsx_base64:
@@ -99,7 +97,7 @@ async def handle_text(message: types.Message):
 # ====== Точка входа ======
 async def main():
     print("🤖 Бот запущен и готов принимать сообщения.")
-    await dp.start_polling(bot)
+    await dp.start_polling(bot, parse_mode="MarkdownV2")
 
 
 if __name__ == "__main__":

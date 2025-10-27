@@ -23,12 +23,6 @@ class AnalyzeRequest(BaseModel):
     text: str
 
 
-# ===== Markdown экранирование =====
-def escape_markdown(text: str) -> str:
-    escape_chars = r'_*\[\]()~`>#+-=|{}.!'
-    return re.sub(f'([{re.escape(escape_chars)}])', r'\\\1', text)
-
-
 # ===== /report endpoint =====
 @router.post("/report", response_model=dict)
 async def analyze_report(req: AnalyzeRequest):
@@ -74,18 +68,17 @@ async def analyze_report(req: AnalyzeRequest):
         # 4. Получение рекомендаций GigaChat
         try:
             recs_ai = await generate_recommendation(text, incidents)
-            recs_safe = escape_markdown(recs_ai)
         except Exception as e_ai:
             print("Ошибка GigaChat:", e_ai)
             traceback.print_exc()
-            recs_safe = "💡 Не удалось получить рекомендации от GigaChat."
+            recs_ai = "💡 Не удалось получить рекомендации от GigaChat."
 
         return {
             "incidents": incidents,
             "total_risk": result.get('total_risk', 0),
             "risk_level": result.get('risk_level', "low"),
             "xlsx_base64": encoded_xlsx,
-            "recommendations": recs_safe
+            "recommendations": recs_ai
         }
 
     except HTTPException:
