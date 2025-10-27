@@ -2,7 +2,6 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from datetime import datetime
 import base64
-import re
 import traceback
 
 from app.services.nlp_service import NLPService
@@ -13,7 +12,7 @@ from app.db.models import Incident
 
 router = APIRouter()
 
-nlp = NLPService("app/rules/rules_v5.yaml")
+nlp = NLPService("app/rules/rules_v6.yaml")
 report_service = ReportService()
 
 
@@ -30,8 +29,10 @@ async def analyze_report(req: AnalyzeRequest):
             raise HTTPException(status_code=400, detail="Текст публикации пустой.")
 
         # 1. Проверяем через GigaChat, является ли текст рекламой
+        ad_check_result = None
         try:
             ad_check_result = await find_ads(text)
+            print(f"[GigaChat Ad Check] Результат: {ad_check_result}")
 
             if ad_check_result == "Не реклама":
                 return {
@@ -48,35 +49,50 @@ async def analyze_report(req: AnalyzeRequest):
         except Exception as e_ad_check:
             print("Ошибка при проверке рекламы через GigaChat:", e_ad_check)
             traceback.print_exc()
-            # Продолжаем обработку даже если проверка не удалась
 
-        # 2. NLP-анализ (теперь включает правила)
+        # 2. NLP-анализ
         nlp_result = nlp.analyze(text)
         violations = nlp_result.get('violations', [])
+        total_risk = nlp_result.get('total_risk', 0)
+        risk_level = nlp_result.get('risk_level', 'low')
 
-        # Преобразуем violations в incidents для совместимости
+        # Преобразуем violations в incidents для отчета
         incidents = []
         for violation in violations:
-            incidents.append({
+            law_info = violation.get('law', {})
+            incident_data = {
                 'rule_id': violation.get('rule_id', 'unknown'),
-                'message': violation.get('rule_name', 'Нарушение'),
+                'rule_name': violation.get('rule_name', 'Нарушение'),
                 'severity': violation.get('severity', 'medium'),
                 'category': violation.get('category', 'general'),
-                'signal': violation.get('signal', '')
-            })
+                'signal': violation.get('signal', ''),
+                'law': law_info
+            }
+            incidents.append(incident_data)
 
-        # 3. Сохраняем инциденты в БД
+        # 3. Сохраняем данные в БД
         try:
             async with SessionLocal() as session:
-                for inc in incidents:
+                for violation in violations:
+                    law_info = violation.get('law', {})
+
                     incident = Incident(
                         text=text,
-                        violation_type=inc.get('rule_id', 'unknown'),
-                        recommendation=inc.get('recommendation', ''),
+                        rule_id=violation.get('rule_id', 'unknown'),
+                        rule_name=violation.get('rule_name', 'Нарушение'),
+                        severity=violation.get('severity', 'medium'),
+                        category=violation.get('category', 'general'),
+                        signal=violation.get('signal', ''),
+                        закон=law_info.get('name', ''),
+                        статья=str(law_info.get('article', '')),
+                        выдержка_описание=law_info.get('excerpt', ''),
+                        штраф=law_info.get('risk', ''),
                         created_at=datetime.utcnow()
                     )
                     session.add(incident)
+
                 await session.commit()
+
         except Exception as e_db:
             print("Ошибка при сохранении в БД:", e_db)
             traceback.print_exc()
@@ -100,15 +116,14 @@ async def analyze_report(req: AnalyzeRequest):
 
         return {
             "incidents": incidents,
-            "total_risk": nlp_result.get('total_risk', 0),
-            "risk_level": nlp_result.get('risk_level', "low"),
+            "total_risk": total_risk,
+            "risk_level": risk_level,
             "xlsx_base64": encoded_xlsx,
             "recommendations": recs_ai,
-            # Дополнительная информация из NLP анализа
             "entities": nlp_result.get('entities', {}),
             "ad_info": nlp_result.get('ad_info', {}),
             "pd_fields": nlp_result.get('pd_fields', {}),
-            "gigachat_ad_check": ad_check_result if 'ad_check_result' in locals() else "Проверка не выполнена"
+            "gigachat_ad_check": ad_check_result if ad_check_result else "Проверка не выполнена"
         }
 
     except HTTPException:

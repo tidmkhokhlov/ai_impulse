@@ -3,8 +3,6 @@ import yaml
 from pathlib import Path
 from typing import Dict, Any, List
 from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.metrics.pairwise import cosine_similarity
-import numpy as np
 
 
 class NLPService:
@@ -44,12 +42,6 @@ class NLPService:
                 Path("rules_v4.yaml"),
                 Path("rules/rules_v4.yaml"),
             ])
-
-        # Выводим отладочную информацию
-        print(f"[DEBUG] Ищем правила по путям:")
-        for i, path in enumerate(possible_paths):
-            exists = "✅ СУЩЕСТВУЕТ" if path.exists() else "❌ НЕТ"
-            print(f"  {i + 1}. {path} {exists}")
 
         # Попробовать найти файл
         for path in possible_paths:
@@ -213,13 +205,17 @@ class NLPService:
         violations = []
         for rule in self.rules:
             if self._check_condition(preprocessed_text, rule.get('condition', {})):
-                violations.append({
+                # Создаем violation с полной юридической информацией
+                violation = {
                     'rule_id': rule['id'],
                     'rule_name': rule['name'],
+                    'description': rule.get('description', ''),
                     'signal': rule['signal'],
                     'severity': rule.get('severity', 'medium'),
-                    'category': rule.get('category', 'general')
-                })
+                    'category': rule.get('category', 'general'),
+                    'law': rule.get('law', {})  # Юридическая информация из правил
+                }
+                violations.append(violation)
 
         # Расчет уровня риска
         risk_info = self._calculate_risk_level(violations)

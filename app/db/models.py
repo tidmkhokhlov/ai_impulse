@@ -1,5 +1,5 @@
-from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey
-from sqlalchemy.orm import relationship
+# models.py
+from sqlalchemy import Column, Integer, String, Text, DateTime
 from datetime import datetime
 from app.db.database import Base
 
@@ -8,14 +8,13 @@ class Incident(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     text = Column(Text)
-    violation_type = Column(String)
-    recommendation = Column(Text)
+    rule_id = Column(String, index=True)
+    rule_name = Column(String)
+    severity = Column(String)
+    category = Column(String)
+    signal = Column(String)
+    закон = Column(String)  # law_name
+    статья = Column(String)  # law_article  
+    выдержка_описание = Column(Text)  # law_excerpt
+    штраф = Column(Text)  # law_risk
     created_at = Column(DateTime, default=datetime.utcnow)
-
-class LawRule(Base):
-    __tablename__ = "law_rules"
-
-    id = Column(Integer, primary_key=True, index=True)
-    name = Column(String)
-    pattern = Column(String)
-    description = Column(Text)

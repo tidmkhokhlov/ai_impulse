@@ -41,7 +41,7 @@ async def generate_recommendation(text: str, incidents: list) -> str:
 
     prompt = (
         "Ты эксперт по рекламе. Дай рекомендации, как исправить следующие нарушения:\n"
-        f"{', '.join(i['message'] for i in incidents)}\n\n"
+        f"{', '.join(i['rule_name'] for i in incidents)}\n\n"
         f"Текст публикации:\n{text}\n\n"
         "Сначала напиши кратко, в виде списка с пунктами."
         "В конце предложи исправленную версию."
