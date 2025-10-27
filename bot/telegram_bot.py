@@ -12,6 +12,7 @@ from aiogram.types import FSInputFile, ReplyKeyboardMarkup, KeyboardButton, Inli
 from app.services.fetch import fetch
 load_dotenv()
 
+
 # ====== Настройки ======
 BOT_TOKEN = os.getenv("TG_BOT_TOKEN")
 API_URL = "http://127.0.0.1:8000/api/v1/analyze/"
