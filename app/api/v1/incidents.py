@@ -3,7 +3,6 @@ from typing import List
 
 router = APIRouter()
 
-# Simple in-memory placeholder. Replace with DB-backed implementation.
 _INCIDENTS = []
 
 @router.get('/', response_model=List[dict])

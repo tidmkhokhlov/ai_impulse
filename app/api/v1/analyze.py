@@ -32,7 +32,6 @@ async def analyze_report(req: AnalyzeRequest):
         ad_check_result = None
         try:
             ad_check_result = await find_ads(text)
-            print(f"[GigaChat Ad Check] Результат: {ad_check_result}")
 
             if ad_check_result == "Не реклама":
                 return {

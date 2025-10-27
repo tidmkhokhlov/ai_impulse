@@ -35,12 +35,12 @@ class NLPService:
         if not rules_config:
             current_dir = Path(__file__).parent
             possible_paths.extend([
-                current_dir / "rules_v4.yaml",
-                current_dir / "rules" / "rules_v4.yaml",
-                current_dir.parent / "rules" / "rules_v4.yaml",
-                current_dir.parent.parent / "rules" / "rules_v4.yaml",
-                Path("rules_v4.yaml"),
-                Path("rules/rules_v4.yaml"),
+                current_dir / "rules_v6.yaml",
+                current_dir / "rules" / "rules_v6.yaml",
+                current_dir.parent / "rules" / "rules_v6.yaml",
+                current_dir.parent.parent / "rules" / "rules_v6.yaml",
+                Path("rules_v6.yaml"),
+                Path("rules/rules_v6.yaml"),
             ])
 
         # Попробовать найти файл
