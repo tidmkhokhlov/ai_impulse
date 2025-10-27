@@ -9,9 +9,6 @@ from aiogram import Bot, Dispatcher, Router, types, F
 from aiogram.filters import CommandStart, Command
 from aiogram.types import FSInputFile, ReplyKeyboardMarkup, KeyboardButton
 
-
-from bot.monitoring.monitor import monitor
-
 from bot.utils.fetch import fetch
 load_dotenv()
 
@@ -20,10 +17,6 @@ load_dotenv()
 BOT_TOKEN = os.getenv("TG_BOT_TOKEN")
 API_URL = "http://127.0.0.1:8000/api/v1/analyze/"
 REPORT_ENDPOINT = f"{API_URL}report"
-
-# ====== айдишник админа  ======
-ADMIN_IDS = [1431784288]  # Ваш ID или список ID администраторов
-MONITORED_CHANNELS = set()  # Хранилище отслеживаемых каналов ( Временно нужно перенести в бд )
 
 if not BOT_TOKEN:
     raise ValueError("TG_BOT_TOKEN not provided.")
@@ -41,29 +34,17 @@ def get_main_keyboard():
     return ReplyKeyboardMarkup(
         keyboard=[
             [KeyboardButton(text="📊 Анализ текста"), KeyboardButton(text="🔗 Анализ ссылки")],
-            [KeyboardButton(text="📢 Мониторинг каналов"), KeyboardButton(text="❓ Помощь")]
+            [KeyboardButton(text="❓ Помощь")]
         ],
         resize_keyboard=True,
         input_field_placeholder="Выберите действие..."
     )
 
 
-
-
 def get_back_to_main_keyboard():
     """Кнопка возврата в главное меню"""
     return ReplyKeyboardMarkup(
         keyboard=[[KeyboardButton(text="⬅️ Главное меню")]],
-        resize_keyboard=True
-    )
-
-def get_monitoring_keyboard():
-    """Клавиатура управления мониторингом"""
-    return ReplyKeyboardMarkup(
-        keyboard=[
-            [KeyboardButton(text="📢 Добавить канал"), KeyboardButton(text="📋 Мои подписки")],
-            [KeyboardButton(text="❌ Удалить канал"), KeyboardButton(text="⬅️ Главное меню")]
-        ],
         resize_keyboard=True
     )
 
@@ -127,158 +108,13 @@ async def request_link_analysis(message: types.Message):
     )
 
 
-# ====== Хэндлеры мониторинга ======
-@router.message(F.text == "📢 Мониторинг каналов")
-async def monitoring_menu(message: types.Message):
-    """Меню управления мониторингом"""
-    menu_text = """
-📢 **Мониторинг Telegram каналов**
-
-Функции:
-• 📢 Добавить канал - начать отслеживание новых постов
-• 📋 Мои подписки - список отслеживаемых каналов  
-• ❌ Удалить канал - остановить мониторинг
-
-Бот будет автоматически проверять каждый новый пост в канале и присылать уведомления о нарушениях.
-    """
-    await message.answer(menu_text, reply_markup=get_monitoring_keyboard())
-
-
-@router.message(F.text == "📢 Добавить канал")
-async def add_channel_request(message: types.Message):
-    """Запрос пересланного сообщения для добавления канала"""
-    await message.answer(
-        "➡️ **Чтобы добавить канал для мониторинга:**\n\n"
-        "1. Перейдите в нужный канал\n"
-        "2. Выберите любое сообщение\n" 
-        "3. Нажмите \"Переслать\"\n"
-        "4. Выберите этого бота\n\n"
-        "📝 *Бот автоматически добавит канал в отслеживание*",
-        reply_markup=get_back_to_main_keyboard(),
-        parse_mode="Markdown"
-    )
-
-
-@router.message(F.forward_from_chat)
-async def handle_forwarded_channel(message: types.Message):
-    """Обработка пересланного сообщения из канала"""
-    try:
-        channel = message.forward_from_chat
-
-        # Проверяем, что это канал
-        if channel.type != "channel":
-            await message.answer("❌ Это не канал. Перешлите сообщение именно из канала.")
-            return
-
-        channel_id = channel.id
-        channel_title = channel.title
-        channel_username = f"@{channel.username}" if channel.username else f"ID: {channel_id}"
-
-        # Проверяем права бота в канале
-        try:
-            bot_member = await bot.get_chat_member(channel_id, (await bot.get_me()).id)
-            if bot_member.status not in ['administrator', 'member']:
-                await message.answer(
-                    f"❌ **Бот не добавлен в канал '{channel_title}'!**\n\n"
-                    f"Чтобы начать мониторинг:\n"
-                    f"1. Добавьте бота в канал как администратора\n"
-                    f"2. Дайте права на чтение сообщений\n"
-                    f"3. Перешлите сообщение снова",
-                    reply_markup=get_monitoring_keyboard()
-                )
-                return
-        except Exception as e:
-            await message.answer(
-                f"❌ **Не удалось проверить права бота:**\n{str(e)}\n\n"
-                f"Убедитесь, что бот добавлен в канал как администратор.",
-                reply_markup=get_monitoring_keyboard()
-            )
-            return
-
-        # Добавляем канал в глобальное отслеживание
-        if channel_id not in MONITORED_CHANNELS:
-            MONITORED_CHANNELS.add(channel_id)
-
-        # Добавляем подписку пользователя
-        subscription_id = channel_username
-        if monitor.add_subscription(message.from_user.id, subscription_id):
-
-            await message.answer(
-                f"✅ **Канал добавлен для мониторинга!**\n\n"
-                f"📢 **Название:** {channel_title}\n"
-                f"🔗 **ID:** {subscription_id}\n\n"
-                f"Теперь бот будет анализировать каждый новый пост в этом канале "
-                f"и присылать вам отчеты с анализом нарушений.",
-                reply_markup=get_monitoring_keyboard()
-            )
-
-            print(f"✅ Добавлен канал: {channel_title} (ID: {channel_id}) для пользователя {message.from_user.id}")
-
-        else:
-            await message.answer(
-                f"ℹ️ Канал '{channel_title}' уже отслеживается",
-                reply_markup=get_monitoring_keyboard()
-            )
-
-    except Exception as e:
-        await message.answer(
-            f"❌ **Ошибка при добавлении канала:**\n{str(e)}",
-            reply_markup=get_monitoring_keyboard()
-        )
-
-@router.message(F.text == "📋 Мои подписки")
-async def show_subscriptions(message: types.Message):
-    """Показать подписки пользователя"""
-    subscriptions = monitor.get_user_subscriptions(message.from_user.id)
-
-    if not subscriptions:
-        await message.answer("❌ Вы не отслеживаете ни одного канала.")
-        return
-
-    subscriptions_text = "📋 **Ваши подписки:**\n\n" + "\n".join([f"• {sub}" for sub in subscriptions])
-    await message.answer(subscriptions_text)
-
-
-@router.message(F.text == "❌ Удалить канал")
-async def remove_channel_request(message: types.Message):
-    """Запрос username канала для удаления"""
-    subscriptions = monitor.get_user_subscriptions(message.from_user.id)
-
-    if not subscriptions:
-        await message.answer("❌ У вас нет активных подписок.")
-        return
-
-    subscriptions_text = "Введите @username канала для удаления:\n\n" + "\n".join([f"• {sub}" for sub in subscriptions])
-    await message.answer(subscriptions_text, reply_markup=get_back_to_main_keyboard())
-
-
-@router.message(F.text.startswith('@'))
-async def handle_channel_username(message: types.Message):
-    """Обработка username канала"""
-    username = message.text.strip().lower()
-
-    # Определяем контекст - добавление или удаление
-    if username in [sub.lower() for sub in monitor.get_user_subscriptions(message.from_user.id)]:
-        # Удаление
-        monitor.remove_subscription(message.from_user.id, username)
-        await message.answer(f"✅ Канал {username} удален из мониторинга.")
-    else:
-        # Добавление
-        if monitor.add_subscription(message.from_user.id, username):
-            await message.answer(f"✅ Канал {username} добавлен в мониторинг!")
-        else:
-            await message.answer(f"⚠️ Вы уже отслеживаете канал {username}.")
-
-    await message.answer("Выберите действие:", reply_markup=get_monitoring_keyboard())
-
-
 @router.message()
 async def handle_text(message: types.Message):
     """Основной обработчик текста и ссылок"""
     text = message.text.strip()
 
     # Игнорируем команды меню
-    if text in ["📊 Анализ текста", "🔗 Анализ ссылки", "❓ Помощь", "📢 Добавить канал", "📢 Мониторинг каналов"]:
+    if text in ["📊 Анализ текста", "🔗 Анализ ссылки", "❓ Помощь"]:
         return
 
     if not text:
