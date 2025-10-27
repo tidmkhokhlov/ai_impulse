@@ -72,7 +72,6 @@ async def analyze_report(req: AnalyzeRequest):
 
         # 4. Получение рекомендаций GigaChat
         try:
-            print(text, incidents)
             recs_ai = await generate_recommendation(text, incidents)
         except Exception as e_ai:
             print("Ошибка GigaChat:", e_ai)
