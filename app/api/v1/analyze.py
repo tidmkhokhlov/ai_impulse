@@ -6,7 +6,6 @@ import re
 import traceback
 
 from app.services.nlp_service import NLPService
-from app.services.rules_engine import RulesEngine
 from app.services.report_service import ReportService
 from app.services.gigachat_service import generate_recommendation
 from app.db.database import SessionLocal
@@ -14,8 +13,8 @@ from app.db.models import Incident
 
 router = APIRouter()
 
-nlp = NLPService()
-rules = RulesEngine()
+
+nlp = NLPService("app/rules/rules_v5.yaml")
 report_service = ReportService()
 
 
@@ -31,10 +30,20 @@ async def analyze_report(req: AnalyzeRequest):
         if not text:
             raise HTTPException(status_code=400, detail="Текст публикации пустой.")
 
-        # 1. NLP-анализ и правила
+        # 1. NLP-анализ (теперь включает правила)
         nlp_result = nlp.analyze(text)
-        result = rules.evaluate(nlp_result)
-        incidents = result.get('incidents', [])
+        violations = nlp_result.get('violations', [])
+
+        # Преобразуем violations в incidents для совместимости
+        incidents = []
+        for violation in violations:
+            incidents.append({
+                'rule_id': violation.get('rule_id', 'unknown'),
+                'message': violation.get('rule_name', 'Нарушение'),
+                'severity': violation.get('severity', 'medium'),
+                'category': violation.get('category', 'general'),
+                'signal': violation.get('signal', '')
+            })
 
         # 2. Сохраняем инциденты в БД
         try:
@@ -54,11 +63,7 @@ async def analyze_report(req: AnalyzeRequest):
 
         # 3. Генерация XLSX
         try:
-            xlsx_bytes = report_service.incidents_to_xlsx(
-                incidents=incidents,
-                total_risk=result.get('total_risk', 0),
-                risk_level=result.get('risk_level', "low")
-            )
+            xlsx_bytes = report_service.violations_to_xlsx(nlp_result)
             encoded_xlsx = base64.b64encode(xlsx_bytes).decode('utf-8')
         except Exception as e_xlsx:
             print("Ошибка при генерации XLSX:", e_xlsx)
@@ -75,10 +80,14 @@ async def analyze_report(req: AnalyzeRequest):
 
         return {
             "incidents": incidents,
-            "total_risk": result.get('total_risk', 0),
-            "risk_level": result.get('risk_level', "low"),
+            "total_risk": nlp_result.get('total_risk', 0),
+            "risk_level": nlp_result.get('risk_level', "low"),
             "xlsx_base64": encoded_xlsx,
-            "recommendations": recs_ai
+            "recommendations": recs_ai,
+            # Дополнительная информация из NLP анализа
+            "entities": nlp_result.get('entities', {}),
+            "ad_info": nlp_result.get('ad_info', {}),
+            "pd_fields": nlp_result.get('pd_fields', {})
         }
 
     except HTTPException:

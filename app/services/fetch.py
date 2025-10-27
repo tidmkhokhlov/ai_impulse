@@ -1,7 +1,9 @@
 import re
 import os
 from telethon import TelegramClient
+from dotenv import load_dotenv
 
+load_dotenv()
 
 # Получаем ключи из переменных окружения (или .env, если у тебя он подключен)
 API_ID = int(os.getenv("TG_API_ID", "0"))

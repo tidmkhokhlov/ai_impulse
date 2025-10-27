@@ -16,3 +16,7 @@ httpx~=0.28.1
 aiosqlite
 
 openai~=2.6.1
+numpy~=2.3.4
+python-dotenv~=1.0.1
+rsa~=4.9.1
+scikit-learn~=1.7.2
