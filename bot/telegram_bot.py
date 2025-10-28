@@ -8,8 +8,10 @@ from dotenv import load_dotenv
 from aiogram import Bot, Dispatcher, Router, types, F
 from aiogram.filters import CommandStart, Command
 from aiogram.types import FSInputFile, ReplyKeyboardMarkup, KeyboardButton
+from aiogram.enums import ParseMode
 
 from bot.utils.fetch import fetch
+from bot.utils.escape_markdown import escape_markdown
 load_dotenv()
 
 
@@ -140,7 +142,7 @@ async def handle_text(message: types.Message):
 
     try:
         # Асинхронный запрос к API
-        async with httpx.AsyncClient(timeout=30.0) as client:
+        async with httpx.AsyncClient(timeout=120.0) as client:
             resp = await client.post(REPORT_ENDPOINT, json={"text": analysis_text})
             resp.raise_for_status()
             data = resp.json()
@@ -164,7 +166,7 @@ async def handle_text(message: types.Message):
 
         # Отправка рекомендаций
         if recommendations:
-            await message.answer(f"💡 Рекомендации:\n{recommendations}")
+            await message.answer(f"💡 Рекомендации:\n{escape_markdown(recommendations)}", parse_mode=ParseMode.MARKDOWN_V2)
 
         # Отправка XLSX отчета
         if xlsx_base64:

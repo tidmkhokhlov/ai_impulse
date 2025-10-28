@@ -1,7 +1,6 @@
 import os
 from openai import AsyncOpenAI
 from dotenv import load_dotenv
-from rsa.cli import verify
 
 load_dotenv()
 
@@ -44,6 +43,8 @@ async def generate_recommendation(text: str, incidents: list) -> str:
         f"{', '.join(i['rule_name'] for i in incidents)}\n\n"
         f"Текст публикации:\n{text}\n\n"
         "Выведи рекомендацию по каждому нарушению с указанием закона и статьи."
+        "Только кратко, это будет выводиться пользователю бота в тг."
+        "Формат вывода с эмодзи для пунктов списка и без специальных символов форматирования"
     )
 
     try:
@@ -53,11 +54,13 @@ async def generate_recommendation(text: str, incidents: list) -> str:
                 {"role": "system", "content": "Ты эксперт по рекламе и комплаенсу."},
                 {"role": "user", "content": prompt}
             ],
-            max_tokens=2000,
+            max_tokens=5000,
             temperature=0.7,
             top_p=0.95,
             presence_penalty=0,
         )
+
+        print(response.choices[0].message.content)
 
         return response.choices[0].message.content
     except Exception as e:
@@ -90,6 +93,8 @@ async def find_ads(text: str) -> str:
             top_p=0.95,
             presence_penalty=0,
         )
+
+        print(response.choices[0].message.content)
 
         return response.choices[0].message.content
     except Exception as e:
